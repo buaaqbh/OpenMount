@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="256" height="256" role="img" aria-label="OpenMount">
+  <!-- Design source for OpenMount.ico (tools/IconGen renders the sizes from the same geometry).
+       Concept: a cloud settling onto a drive — remote storage becomes a local drive letter. Brand blue #2457E6, no gradients. -->
+  <rect x="4" y="4" width="56" height="56" rx="14" fill="#2457E6"/>
+  <path d="M20 30a8 8 0 0 1 15.2-3.2A6.5 6.5 0 0 1 46 31.5c0 .2 0 .3-.1.5H21.5A4.5 4.5 0 0 1 20 30z" fill="#FFFFFF"/>
+  <rect x="31" y="32" width="2" height="4" fill="#FFFFFF"/>
+  <rect x="14" y="36" width="36" height="14" rx="4" fill="#FFFFFF"/>
+  <circle cx="43" cy="43" r="2.4" fill="#2457E6"/>
+  <rect x="18" y="41.5" width="14" height="3" rx="1.5" fill="#2457E6" opacity=".35"/>
+</svg>

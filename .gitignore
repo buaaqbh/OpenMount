@@ -1,0 +1,11 @@
+bin/
+obj/
+*.user
+.vs/
+TestResults/
+*.log
+deps/**/*.exe
+deps/**/*.msi
+deps/**/*.zip
+deps/**/README-rclone.txt
+dist/

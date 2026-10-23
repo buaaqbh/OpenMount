@@ -1,0 +1,286 @@
+<Window x:Class="OpenMount.App.Views.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+        Title="设置" Width="840" Height="600" MinWidth="760" MinHeight="520"
+        Style="{StaticResource AppWindow}" WindowStartupLocation="CenterOwner" ShowInTaskbar="False">
+  <Window.Resources>
+    <Style x:Key="RowTitle" TargetType="TextBlock" BasedOn="{StaticResource BodyText}" />
+    <Style x:Key="RowDesc" TargetType="TextBlock" BasedOn="{StaticResource Help}">
+      <Setter Property="Margin" Value="0,2,0,0" />
+    </Style>
+    <Style x:Key="Page" TargetType="StackPanel">
+      <Setter Property="Visibility" Value="Collapsed" />
+    </Style>
+    <Style TargetType="ui:ToggleSwitch" BasedOn="{StaticResource {x:Type ui:ToggleSwitch}}">
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="Margin" Value="16,0,0,0" />
+    </Style>
+  </Window.Resources>
+
+  <DockPanel>
+    <Border DockPanel.Dock="Bottom" Style="{StaticResource WindowFooter}" Padding="20,10">
+      <DockPanel>
+        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+          <ui:Button Content="导出配置…" Click="Export_Click" />
+          <ui:Button Content="导入配置…" Margin="8,0,0,0" Click="Import_Click" />
+          <ui:Button Appearance="Primary" Content="关闭" Margin="8,0,0,0" Click="Close_Click" IsCancel="True" />
+        </StackPanel>
+        <TextBlock x:Name="VersionText" Style="{StaticResource StatusBarText}" />
+      </DockPanel>
+    </Border>
+
+    <Grid>
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="180" />
+        <ColumnDefinition Width="*" />
+      </Grid.ColumnDefinitions>
+      <Border BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="0,0,1,0" Padding="12,4,12,12">
+        <DockPanel>
+          <TextBlock DockPanel.Dock="Bottom" Text="设置即时保存" Style="{StaticResource Help}" Margin="12,0,0,0" />
+          <ListBox x:Name="Nav" ItemContainerStyle="{StaticResource NavItem}" BorderThickness="0" Background="Transparent" Padding="0" SelectedIndex="0" SelectionChanged="Nav_SelectionChanged">
+            <ListBoxItem Content="常规" />
+            <ListBoxItem Content="代理" />
+            <ListBoxItem Content="缓存" />
+            <ListBoxItem Content="高级" />
+            <ListBoxItem Content="依赖" />
+            <ListBoxItem Content="关于" />
+          </ListBox>
+        </DockPanel>
+      </Border>
+
+      <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto" Padding="24,4,24,12">
+        <Grid>
+          <!-- ===== 常规 ===== -->
+          <StackPanel x:Name="PageGeneral" Style="{StaticResource Page}" Visibility="Visible">
+            <TextBlock Text="常规" Style="{StaticResource PageTitle}" Margin="0,6,0,4" />
+            <Border Style="{StaticResource SettingRow}">
+              <DockPanel>
+                <ui:ToggleSwitch x:Name="RunAtStartup" DockPanel.Dock="Right" Checked="Persist_Changed" Unchecked="Persist_Changed" />
+                <StackPanel VerticalAlignment="Center">
+                  <TextBlock Text="登录 Windows 后自动启动" Style="{StaticResource RowTitle}" />
+                  <TextBlock Text="登录后在托盘后台运行" Style="{StaticResource RowDesc}" />
+                </StackPanel>
+              </DockPanel>
+            </Border>
+            <Border Style="{StaticResource SettingRow}">
+              <DockPanel>
+                <ui:ToggleSwitch x:Name="OpenExplorer" DockPanel.Dock="Right" Checked="Persist_Changed" Unchecked="Persist_Changed" />
+                <StackPanel VerticalAlignment="Center">
+                  <TextBlock Text="手动连接成功后打开资源管理器" Style="{StaticResource RowTitle}" />
+                </StackPanel>
+              </DockPanel>
+            </Border>
+            <Border Style="{StaticResource SettingRow}">
+              <DockPanel>
+                <ui:ToggleSwitch x:Name="StorageIcons" DockPanel.Dock="Right" Checked="Persist_Changed" Unchecked="Persist_Changed" />
+                <StackPanel VerticalAlignment="Center">
+                  <TextBlock Text="在资源管理器中按存储类型显示驱动器图标" Style="{StaticResource RowTitle}" />
+                </StackPanel>
+              </DockPanel>
+            </Border>
+            <Border Style="{StaticResource SettingRow}" BorderThickness="0">
+              <DockPanel>
+                <ui:ToggleSwitch x:Name="Notifications" DockPanel.Dock="Right" Checked="Persist_Changed" Unchecked="Persist_Changed" />
+                <StackPanel VerticalAlignment="Center">
+                  <TextBlock Text="桌面通知" Style="{StaticResource RowTitle}" />
+                  <TextBlock Text="连接、断开与远端异常时提醒" Style="{StaticResource RowDesc}" />
+                </StackPanel>
+              </DockPanel>
+            </Border>
+            <Border Style="{StaticResource InfoBanner}" Margin="0,10,0,0">
+              <DockPanel>
+                <ui:Button DockPanel.Dock="Right" Style="{StaticResource LinkButton}" Content="打开数据目录" Click="OpenData_Click" />
+                <ui:SymbolIcon Symbol="Info16" FontSize="14" VerticalAlignment="Center" Margin="0,0,8,0" />
+                <TextBlock x:Name="DataDirText" FontSize="12" TextWrapping="Wrap" VerticalAlignment="Center" />
+              </DockPanel>
+            </Border>
+          </StackPanel>
+
+          <!-- ===== 代理 ===== -->
+          <StackPanel x:Name="PageProxy" Style="{StaticResource Page}">
+            <TextBlock Text="代理" Style="{StaticResource PageTitle}" Margin="0,6,0,4" />
+            <Border Style="{StaticResource SettingRow}">
+              <DockPanel>
+                <ComboBox x:Name="ProxyMode" DockPanel.Dock="Right" Width="160" SelectionChanged="Persist_Selection">
+                  <ComboBoxItem Content="不使用" />
+                  <ComboBoxItem Content="使用系统代理" />
+                  <ComboBoxItem Content="自定义" />
+                </ComboBox>
+                <StackPanel VerticalAlignment="Center">
+                  <TextBlock Text="代理模式" Style="{StaticResource RowTitle}" />
+                  <TextBlock Text="只对勾选了“使用代理”的驱动器生效" Style="{StaticResource RowDesc}" />
+                </StackPanel>
+              </DockPanel>
+            </Border>
+            <StackPanel x:Name="ProxyCustom" Margin="0,12,0,0">
+              <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                <TextBlock Text="地址" Style="{StaticResource FieldLabel}" Width="60" />
+                <ComboBox x:Name="ProxyScheme" Width="96" SelectionChanged="Persist_Selection">
+                  <ComboBoxItem Content="http" />
+                  <ComboBoxItem Content="socks5" />
+                </ComboBox>
+                <TextBlock Text="://" Style="{StaticResource Help}" VerticalAlignment="Center" Margin="6,0" />
+                <TextBox x:Name="ProxyHost" Width="220" LostFocus="Persist_Changed" />
+                <TextBlock Text=":" Style="{StaticResource Help}" VerticalAlignment="Center" Margin="6,0" />
+                <TextBox x:Name="ProxyPort" Width="66" LostFocus="Persist_Changed" />
+              </StackPanel>
+              <StackPanel Orientation="Horizontal">
+                <TextBlock Text="账号" Style="{StaticResource FieldLabel}" Width="60" />
+                <TextBox x:Name="ProxyUser" Width="160" LostFocus="Persist_Changed" />
+                <TextBlock Text="密码" Style="{StaticResource FieldLabel}" Margin="12,0,8,0" />
+                <PasswordBox x:Name="ProxyPassword" Width="160" LostFocus="ProxyPassword_LostFocus" />
+              </StackPanel>
+              <TextBlock x:Name="ProxyPasswordHint" Text="留空表示保持不变" Style="{StaticResource Help}" Margin="60,6,0,0" />
+            </StackPanel>
+          </StackPanel>
+
+          <!-- ===== 缓存 ===== -->
+          <StackPanel x:Name="PageCache" Style="{StaticResource Page}">
+            <TextBlock Text="缓存" Style="{StaticResource PageTitle}" Margin="0,6,0,4" />
+            <Border Style="{StaticResource SettingRow}">
+              <DockPanel>
+                <ui:Button DockPanel.Dock="Right" Content="打开目录" Click="OpenCache_Click" Margin="16,0,0,0" VerticalAlignment="Center" />
+                <StackPanel VerticalAlignment="Center">
+                  <TextBlock Text="缓存目录" Style="{StaticResource RowTitle}" />
+                  <TextBlock x:Name="CacheRoot" Style="{StaticResource Mono}" Margin="0,2,0,0" TextWrapping="Wrap" />
+                </StackPanel>
+              </DockPanel>
+            </Border>
+            <Border Style="{StaticResource SettingRow}">
+              <DockPanel>
+                <TextBox x:Name="CleanupTarget" DockPanel.Dock="Right" Width="90" LostFocus="Persist_Changed" VerticalAlignment="Center" Margin="16,0,0,0" />
+                <StackPanel VerticalAlignment="Center">
+                  <TextBlock Text="每个驱动器的清理目标" Style="{StaticResource RowTitle}" />
+                  <TextBlock Text="如 10G；未上传的文件不会被清理" Style="{StaticResource RowDesc}" />
+                </StackPanel>
+              </DockPanel>
+            </Border>
+            <Border Style="{StaticResource SettingRow}">
+              <DockPanel>
+                <TextBox x:Name="MaxAge" DockPanel.Dock="Right" Width="90" LostFocus="Persist_Changed" VerticalAlignment="Center" Margin="16,0,0,0" />
+                <StackPanel VerticalAlignment="Center">
+                  <TextBlock Text="缓存保留时间" Style="{StaticResource RowTitle}" />
+                  <TextBlock Text="如 24h" Style="{StaticResource RowDesc}" />
+                </StackPanel>
+              </DockPanel>
+            </Border>
+            <Border Style="{StaticResource SettingRow}" BorderThickness="0">
+              <DockPanel>
+                <TextBox x:Name="MinFree" DockPanel.Dock="Right" Width="90" LostFocus="Persist_Changed" VerticalAlignment="Center" Margin="16,0,0,0" />
+                <StackPanel VerticalAlignment="Center">
+                  <TextBlock Text="磁盘最小剩余空间" Style="{StaticResource RowTitle}" />
+                  <TextBlock Text="如 2G" Style="{StaticResource RowDesc}" />
+                </StackPanel>
+              </DockPanel>
+            </Border>
+            <TextBlock x:Name="CacheError" Style="{StaticResource Help}" Foreground="{StaticResource DangerBrush}" Margin="0,8,0,0" />
+          </StackPanel>
+
+          <!-- ===== 高级 ===== -->
+          <StackPanel x:Name="PageAdvanced" Style="{StaticResource Page}">
+            <TextBlock Text="高级" Style="{StaticResource PageTitle}" Margin="0,6,0,4" />
+            <Border Style="{StaticResource SettingRow}">
+              <DockPanel>
+                <ComboBox x:Name="LogLevel" DockPanel.Dock="Right" Width="130" SelectionChanged="Persist_Selection">
+                  <ComboBoxItem Content="ERROR" />
+                  <ComboBoxItem Content="NOTICE" />
+                  <ComboBoxItem Content="INFO" />
+                  <ComboBoxItem Content="DEBUG" />
+                </ComboBox>
+                <StackPanel VerticalAlignment="Center">
+                  <TextBlock Text="rclone 日志级别" Style="{StaticResource RowTitle}" />
+                  <TextBlock Text="对下一次连接生效；DEBUG 仅排障时使用" Style="{StaticResource RowDesc}" />
+                </StackPanel>
+              </DockPanel>
+            </Border>
+            <Border Style="{StaticResource SettingRow}">
+              <DockPanel>
+                <ui:ToggleSwitch x:Name="BlockShutdown" DockPanel.Dock="Right" Checked="Persist_Changed" Unchecked="Persist_Changed" />
+                <StackPanel VerticalAlignment="Center">
+                  <TextBlock Text="有未上传文件时阻止关机并提示" Style="{StaticResource RowTitle}" />
+                </StackPanel>
+              </DockPanel>
+            </Border>
+            <Border Style="{StaticResource SettingRow}">
+              <DockPanel>
+                <ui:Button DockPanel.Dock="Right" Content="打开日志目录" Click="OpenLogs_Click" Margin="16,0,0,0" VerticalAlignment="Center" />
+                <StackPanel VerticalAlignment="Center">
+                  <TextBlock Text="日志" Style="{StaticResource RowTitle}" />
+                  <TextBlock x:Name="LogsDirText" Style="{StaticResource Mono}" Margin="0,2,0,0" TextWrapping="Wrap" />
+                </StackPanel>
+              </DockPanel>
+            </Border>
+            <Border Style="{StaticResource SettingRow}" BorderThickness="0">
+              <StackPanel>
+                <TextBlock Text="网络位置名" Style="{StaticResource RowTitle}" />
+                <TextBlock x:Name="SharePrefixText" Style="{StaticResource Mono}" Margin="0,2,0,0" />
+              </StackPanel>
+            </Border>
+          </StackPanel>
+
+          <!-- ===== 依赖 ===== -->
+          <StackPanel x:Name="PageDeps" Style="{StaticResource Page}">
+            <TextBlock Text="依赖" Style="{StaticResource PageTitle}" Margin="0,6,0,4" />
+            <Border Style="{StaticResource SettingRow}">
+              <DockPanel>
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center" Margin="16,0,0,0">
+                  <ui:Button Content="打开下载页" Click="WinFspDownload_Click" />
+                  <ui:Button Appearance="Transparent" Content="重新检测" Margin="8,0,0,0" Click="Recheck_Click" />
+                </StackPanel>
+                <StackPanel VerticalAlignment="Center">
+                  <StackPanel Orientation="Horizontal">
+                    <Ellipse x:Name="WinFspDot" Style="{StaticResource StatusDot}" />
+                    <TextBlock Text="WinFsp" Style="{StaticResource RowTitle}" />
+                  </StackPanel>
+                  <TextBlock x:Name="WinFspDesc" Style="{StaticResource RowDesc}" />
+                </StackPanel>
+              </DockPanel>
+            </Border>
+            <Border Style="{StaticResource SettingRow}" BorderThickness="0">
+              <StackPanel>
+                <StackPanel Orientation="Horizontal">
+                  <Ellipse x:Name="RcloneDot" Style="{StaticResource StatusDot}" />
+                  <TextBlock Text="rclone" Style="{StaticResource RowTitle}" />
+                </StackPanel>
+                <TextBlock x:Name="RcloneDesc" Style="{StaticResource RowDesc}" />
+                <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                  <ComboBox x:Name="RcloneMode" Width="120" SelectionChanged="Persist_Selection">
+                    <ComboBoxItem Content="内置" />
+                    <ComboBoxItem Content="自定义" />
+                  </ComboBox>
+                  <TextBox x:Name="RclonePath" Width="300" Margin="8,0,0,0" LostFocus="Persist_Changed" ToolTip="自定义 rclone.exe 的完整路径" />
+                  <ui:Button Content="…" Width="36" Padding="0" Margin="6,0,0,0" Click="BrowseRclone_Click" />
+                  <ui:Button Content="探测" Margin="8,0,0,0" Click="Probe_Click" />
+                </StackPanel>
+                <TextBlock x:Name="ProbeResult" Style="{StaticResource RowDesc}" Margin="0,6,0,0" />
+              </StackPanel>
+            </Border>
+          </StackPanel>
+
+          <!-- ===== 关于 ===== -->
+          <StackPanel x:Name="PageAbout" Style="{StaticResource Page}">
+            <TextBlock Text="关于" Style="{StaticResource PageTitle}" Margin="0,6,0,10" />
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+              <Image Source="pack://application:,,,/Assets/OpenMount.ico" Width="48" Height="48" VerticalAlignment="Top" />
+              <StackPanel Margin="14,0,0,0" VerticalAlignment="Center">
+                <TextBlock x:Name="AboutTitle" FontSize="16" FontWeight="SemiBold" />
+                <TextBlock Text="把 WebDAV / SFTP 挂载成 Windows 驱动器。开源，MIT 许可证。" Style="{StaticResource Muted}" Margin="0,2,0,0" />
+              </StackPanel>
+            </StackPanel>
+            <TextBlock x:Name="AboutComponents" Style="{StaticResource BodyText}" Margin="0,0,0,8" />
+            <TextBlock Style="{StaticResource Help}" TextWrapping="Wrap"
+                       Text="基于 rclone（MIT）与 WinFsp（Copyright (C) Bill Zissimopoulos）。界面使用 WPF-UI，SFTP 使用 SSH.NET。" />
+            <StackPanel Orientation="Horizontal" Margin="-4,8,0,0">
+              <ui:HyperlinkButton Content="rclone" NavigateUri="https://rclone.org/" />
+              <ui:HyperlinkButton Content="WinFsp" NavigateUri="https://winfsp.dev/" />
+              <ui:HyperlinkButton Content="WPF-UI" NavigateUri="https://github.com/lepoco/wpfui" />
+              <ui:HyperlinkButton Content="SSH.NET" NavigateUri="https://github.com/sshnet/SSH.NET" />
+              <ui:Button Style="{StaticResource LinkButton}" Content="第三方声明" Click="ThirdParty_Click" />
+            </StackPanel>
+          </StackPanel>
+        </Grid>
+      </ScrollViewer>
+    </Grid>
+  </DockPanel>
+</Window>

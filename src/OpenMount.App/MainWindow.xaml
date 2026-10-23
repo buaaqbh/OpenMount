@@ -1,0 +1,205 @@
+<Window x:Class="OpenMount.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+        xmlns:vm="clr-namespace:OpenMount.App.ViewModels"
+        Title="OpenMount" Width="1040" Height="680" MinWidth="860" MinHeight="520"
+        Style="{StaticResource AppWindow}" WindowStartupLocation="CenterScreen">
+  <Window.Resources>
+    <!-- 40 px storage-type tile: accent while mounted, grey otherwise -->
+    <Style x:Key="TypeTile" TargetType="Border" BasedOn="{StaticResource IconTile}">
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Style.Triggers>
+        <DataTrigger Binding="{Binding IsMounted}" Value="False">
+          <Setter Property="Background" Value="{StaticResource TileBrush}" />
+          <Setter Property="TextElement.Foreground" Value="{StaticResource MutedBrush}" />
+        </DataTrigger>
+      </Style.Triggers>
+    </Style>
+    <Style x:Key="LetterText" TargetType="TextBlock">
+      <Setter Property="FontSize" Value="20" />
+      <Setter Property="FontWeight" Value="Bold" />
+      <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+      <Style.Triggers>
+        <DataTrigger Binding="{Binding IsMounted}" Value="False">
+          <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+        </DataTrigger>
+      </Style.Triggers>
+    </Style>
+    <Style x:Key="OkDot" TargetType="Ellipse" BasedOn="{StaticResource StatusDot}">
+      <Setter Property="Fill" Value="{StaticResource WarnBrush}" />
+      <Style.Triggers>
+        <DataTrigger Binding="{Binding Tag, RelativeSource={RelativeSource Self}}" Value="True">
+          <Setter Property="Fill" Value="{StaticResource SuccessBrush}" />
+        </DataTrigger>
+      </Style.Triggers>
+    </Style>
+  </Window.Resources>
+
+  <DockPanel>
+    <!-- toolbar -->
+    <Grid DockPanel.Dock="Top" Margin="16,8,16,12">
+      <StackPanel Orientation="Horizontal">
+        <ui:Button Appearance="Primary" Icon="{ui:SymbolIcon Add24}" Content="添加驱动器" Command="{Binding AddDriveCommand}" />
+        <ui:Button Icon="{ui:SymbolIcon Settings24}" Content="设置" Margin="8,0,0,0" Command="{Binding OpenSettingsCommand}" />
+        <ui:Button Icon="{ui:SymbolIcon TextBulletListLtr24}" Content="日志" Margin="8,0,0,0" Command="{Binding ShowLogCommand}" />
+      </StackPanel>
+      <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+        <Border Style="{StaticResource ChipBorder}" Margin="0,0,8,0" ToolTip="{Binding PortableToolTip}"
+                Visibility="{Binding IsPortable, Converter={StaticResource BoolToVis}}">
+          <TextBlock Text="{Binding PortableText}" FontSize="11.5" FontWeight="Medium" Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
+        </Border>
+        <ui:Button Style="{StaticResource IconButton}" Icon="{ui:SymbolIcon QuestionCircle24}" ToolTip="帮助" Command="{Binding HelpCommand}" />
+      </StackPanel>
+    </Grid>
+
+    <!-- dependency banner (FR-13): non-blocking, drives can still be added and saved -->
+    <Border DockPanel.Dock="Top" Style="{StaticResource WarnBanner}" Margin="16,0,16,12"
+            Visibility="{Binding ShowDependencyBanner, Converter={StaticResource BoolToVis}}">
+      <Grid>
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+        <ui:SymbolIcon Symbol="Warning24" FontSize="22" VerticalAlignment="Center" Margin="0,0,12,0" />
+        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+          <TextBlock Text="{Binding DependencyTitle}" FontSize="13.5" FontWeight="SemiBold" TextWrapping="Wrap" />
+          <TextBlock Text="{Binding DependencyText}" FontSize="12.5" TextWrapping="Wrap" Margin="0,2,0,0" />
+        </StackPanel>
+        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
+          <ui:Button Appearance="Primary" Content="安装 WinFsp" Command="{Binding InstallWinFspCommand}" IsEnabled="{Binding Installing, Converter={StaticResource InverseBool}}"
+                     Visibility="{Binding CanInstallWinFsp, Converter={StaticResource BoolToVis}}" ToolTip="需要管理员权限" />
+          <ui:Button Content="打开下载页" Margin="8,0,0,0" Command="{Binding OpenWinFspDownloadCommand}"
+                     Visibility="{Binding ShowWinFspActions, Converter={StaticResource BoolToVis}}" />
+          <ui:Button Appearance="Transparent" Content="重新检测" Margin="8,0,0,0" Command="{Binding RecheckDependenciesCommand}" />
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <!-- status bar -->
+    <Border DockPanel.Dock="Bottom" Height="34" Background="{StaticResource CardBrush}" BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="0,1,0,0" Padding="16,0">
+      <DockPanel VerticalAlignment="Center">
+        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+          <Ellipse Style="{StaticResource OkDot}" Tag="{Binding NetworkOk}" />
+          <TextBlock Style="{StaticResource StatusBarText}" Text="{Binding NetworkText}" />
+        </StackPanel>
+        <StackPanel Orientation="Horizontal">
+          <Ellipse Style="{StaticResource OkDot}" Tag="{Binding WinFspOk}" />
+          <TextBlock Style="{StaticResource StatusBarText}" Text="{Binding WinFspText}" />
+          <TextBlock Style="{StaticResource SeparatorDot}" />
+          <Ellipse Style="{StaticResource OkDot}" Tag="{Binding RcloneOk}" />
+          <TextBlock Style="{StaticResource StatusBarText}" Text="{Binding RcloneText}" />
+          <TextBlock Style="{StaticResource SeparatorDot}" />
+          <TextBlock Style="{StaticResource StatusBarText}" Text="{Binding DriveCountText}" />
+        </StackPanel>
+      </DockPanel>
+    </Border>
+
+    <Grid Margin="16,0,16,12">
+      <!-- empty state -->
+      <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="520"
+                  Visibility="{Binding IsEmpty, Converter={StaticResource BoolToVis}}">
+        <Viewbox Width="120" Height="96" HorizontalAlignment="Center">
+          <Canvas Width="120" Height="96">
+            <Path Data="M38 40a16 16 0 0 1 31.4-4.6A13 13 0 0 1 86 47H41a9 9 0 0 1-3-7z" Stroke="{StaticResource AccentBrush}" StrokeThickness="2.5" StrokeLineJoin="Round" />
+            <Rectangle Canvas.Left="22" Canvas.Top="58" Width="76" Height="26" RadiusX="7" RadiusY="7" Stroke="{StaticResource AccentBrush}" StrokeThickness="2.5" />
+            <Ellipse Canvas.Left="80" Canvas.Top="67" Width="8" Height="8" Fill="{StaticResource AccentBrush}" />
+            <Path Data="M60 47v11M54 52l6 6 6-6" Stroke="{StaticResource AccentBrush}" StrokeThickness="2.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" />
+          </Canvas>
+        </Viewbox>
+        <TextBlock Text="把远程存储变成一个盘符" FontSize="18" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,18,0,6" />
+        <TextBlock Style="{StaticResource BodyText}" Foreground="{StaticResource MutedBrush}" TextAlignment="Center" LineHeight="21"
+                   Text="添加 WebDAV 或 SFTP 服务器，把它挂载成资源管理器里的驱动器。" />
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,18,0,0">
+          <ui:Button Appearance="Primary" Icon="{ui:SymbolIcon Add24}" Content="添加第一个驱动器" MinHeight="36" Padding="16,4" Command="{Binding AddDriveCommand}" />
+          <ui:Button Content="从文件导入配置" MinHeight="36" Margin="10,0,0,0" Command="{Binding ImportConfigCommand}" />
+        </StackPanel>
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,28,0,0">
+          <Ellipse Style="{StaticResource OkDot}" Tag="{Binding WinFspOk}" />
+          <TextBlock Style="{StaticResource StatusBarText}" Text="{Binding WinFspText}" />
+          <Ellipse Style="{StaticResource OkDot}" Tag="{Binding RcloneOk}" Margin="24,0,6,0" />
+          <TextBlock Style="{StaticResource StatusBarText}" Text="{Binding RcloneText}" />
+        </StackPanel>
+      </StackPanel>
+
+      <!-- drive cards -->
+      <ListBox ItemsSource="{Binding Drives}" BorderThickness="0" Background="Transparent" Padding="0" HorizontalContentAlignment="Stretch"
+               ScrollViewer.HorizontalScrollBarVisibility="Disabled" MouseDoubleClick="List_MouseDoubleClick"
+               Visibility="{Binding IsEmpty, Converter={StaticResource InverseBoolToVis}}">
+        <ListBox.ItemContainerStyle>
+          <Style TargetType="ListBoxItem">
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="0,0,0,10" />
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="Template">
+              <Setter.Value>
+                <ControlTemplate TargetType="ListBoxItem">
+                  <Border Style="{StaticResource Card}">
+                    <ContentPresenter />
+                  </Border>
+                </ControlTemplate>
+              </Setter.Value>
+            </Setter>
+          </Style>
+        </ListBox.ItemContainerStyle>
+        <ListBox.ItemTemplate>
+          <DataTemplate DataType="{x:Type vm:DriveRowViewModel}">
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="112" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <!-- letter + type -->
+              <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <Border Style="{StaticResource TypeTile}">
+                  <ui:SymbolIcon Symbol="{Binding TypeSymbol}" FontSize="22" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Border>
+                <StackPanel Margin="10,0,0,0" VerticalAlignment="Center">
+                  <TextBlock Text="{Binding MountPoint}" Style="{StaticResource LetterText}" />
+                  <TextBlock Text="{Binding TypeLabel}" FontSize="11" Foreground="{StaticResource MutedBrush}" Margin="0,2,0,0" />
+                </StackPanel>
+              </StackPanel>
+              <!-- name, status, account, badges -->
+              <StackPanel Grid.Column="1" Margin="14,0" VerticalAlignment="Center">
+                <WrapPanel Orientation="Horizontal">
+                  <TextBlock Text="{Binding Name}" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,10,0" TextTrimming="CharacterEllipsis" MaxWidth="360" />
+                  <ContentControl Focusable="False" Content="{Binding Lifecycle}" ContentTemplate="{StaticResource ChipTemplate}" />
+                  <ContentControl Focusable="False" Content="{Binding Health}" ContentTemplate="{StaticResource ChipTemplate}" Visibility="{Binding Health, Converter={StaticResource NotNullVis}}" />
+                  <ContentControl Focusable="False" Content="{Binding Sync}" ContentTemplate="{StaticResource ChipTemplate}" Visibility="{Binding Sync, Converter={StaticResource NotNullVis}}" />
+                </WrapPanel>
+                <TextBlock Text="{Binding Account}" Style="{StaticResource Muted}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" Margin="0,4,0,0" />
+                <WrapPanel Orientation="Horizontal" Margin="0,4,0,0">
+                  <TextBlock Text="{Binding SpaceText}" Style="{StaticResource StatusBarText}" />
+                  <TextBlock Style="{StaticResource SeparatorDot}" />
+                  <ItemsControl Style="{StaticResource ChipList}" ItemsSource="{Binding Badges}" />
+                </WrapPanel>
+              </StackPanel>
+              <!-- actions -->
+              <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                <ui:Button Appearance="{Binding PrimaryAppearance}" Content="{Binding PrimaryLabel}" Command="{Binding ToggleCommand}" IsEnabled="{Binding CanToggle}" MinWidth="78">
+                  <ui:Button.Icon>
+                    <ui:SymbolIcon Symbol="{Binding PrimarySymbol}" />
+                  </ui:Button.Icon>
+                </ui:Button>
+                <ui:Button Appearance="Transparent" Content="打开" Command="{Binding OpenCommand}" IsEnabled="{Binding CanOpen}" Margin="6,0,0,0" ToolTip="在资源管理器中打开" />
+                <ui:Button Appearance="Transparent" Content="详情" Command="{Binding DetailsCommand}" Margin="6,0,0,0" />
+                <ui:Button Appearance="Transparent" Style="{StaticResource IconButton}" Icon="{ui:SymbolIcon MoreHorizontal24}" Margin="6,0,0,0" ToolTip="更多：编辑、复制、删除" Click="More_Click">
+                  <ui:Button.ContextMenu>
+                    <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                      <MenuItem Header="编辑…" Command="{Binding EditCommand}" IsEnabled="{Binding CanEdit}" />
+                      <MenuItem Header="复制…" Command="{Binding DuplicateCommand}" />
+                      <Separator />
+                      <MenuItem Header="删除…" Command="{Binding DeleteCommand}" />
+                    </ContextMenu>
+                  </ui:Button.ContextMenu>
+                </ui:Button>
+              </StackPanel>
+            </Grid>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+    </Grid>
+  </DockPanel>
+</Window>

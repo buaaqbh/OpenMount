@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RootNamespace>OpenMount.Rclone</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\OpenMount.Core\OpenMount.Core.csproj" />
+    <ProjectReference Include="..\OpenMount.Windows\OpenMount.Windows.csproj" />
+  </ItemGroup>
+</Project>

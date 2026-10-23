@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <RootNamespace>OpenMount.App</RootNamespace>
+    <AssemblyName>OpenMount</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\OpenMount.ico</ApplicationIcon>
+    <StartupObject>OpenMount.App.Program</StartupObject>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- WinForms is only used for the tray icon; keep its namespaces out of the implicit usings to avoid WPF ambiguities. -->
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+    <!-- WPF-UI (MIT): Fluent styles for standard WPF controls; see App.xaml -->
+    <PackageReference Include="WPF-UI" Version="4.2.1" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Icon family rendered by tools\IconGen from the design (Assets\app-icon.svg is the source drawing). -->
+    <Resource Include="Assets\OpenMount.ico" />
+    <Resource Include="Assets\tray-*.ico" />
+    <!-- Explorer reads drive-type icons from disk (HKCU DefaultIcon), so they ship next to the exe. -->
+    <Content Include="Assets\drive-*.ico" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- rclone fetched by tools\fetch-deps.ps1 is shipped next to the exe as bin\rclone.exe -->
+    <None Include="..\..\deps\rclone\rclone.exe" Link="bin\rclone.exe" CopyToOutputDirectory="PreserveNewest" Condition="Exists('..\..\deps\rclone\rclone.exe')" />
+    <None Include="..\..\deps\winfsp\*.msi" Link="redist\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" Condition="Exists('..\..\deps\winfsp')" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\OpenMount.Core\OpenMount.Core.csproj" />
+    <ProjectReference Include="..\OpenMount.Rclone\OpenMount.Rclone.csproj" />
+    <ProjectReference Include="..\OpenMount.Windows\OpenMount.Windows.csproj" />
+  </ItemGroup>
+</Project>

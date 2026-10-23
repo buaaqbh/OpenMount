@@ -1,0 +1,32 @@
+OpenMount 便携版（win-x64，自包含 .NET 10 运行时）
+==================================================
+
+前提
+----
+1. 已安装 WinFsp 2.1（系统驱动，必须单独安装一次）：
+   winget install WinFsp.WinFsp
+   或从 https://winfsp.dev/rel/ 下载官方 MSI。
+2. Windows 10 1809 及以上 / Windows 11，x64。
+
+使用
+----
+- 双击 OpenMount.exe。程序常驻托盘，关闭主窗口只是隐藏；托盘右键"退出"才会断开全部驱动器并退出。
+- 点"添加驱动器"创建 WebDAV / SFTP 驱动器，填好地址、账号后点"连接"。
+- 本目录下的 portable.txt 使配置 / 日志 / 缓存全部放在旁边的 data\ 目录；删除它则改用 %LOCALAPPDATA%\OpenMount。
+- 命令行：OpenMount.exe --minimized（启动后不显示窗口）、--connect "名称"、--disconnect "名称"、--connect-all、--disconnect-all、--exit。
+- 日志：data\logs\（主程序）与 data\logs\drives\（每个驱动器的 rclone 日志）。
+
+目录
+----
+OpenMount.exe           主程序
+bin\rclone.exe          rclone（挂载引擎）
+Assets\                 资源管理器驱动器图标
+portable.txt            便携模式标记
+LICENSE                 MIT
+THIRD-PARTY-NOTICES.md  第三方组件声明（含 WinFsp）
+
+已知限制
+--------
+- 尚无安装包与代码签名，SmartScreen 可能提示"未知发布者"。
+- 界面为简体中文，仅浅色主题。
+- SFTP 首次连接会显示服务器主机密钥指纹，请与服务器管理员核对后再信任。

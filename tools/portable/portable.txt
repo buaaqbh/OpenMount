@@ -1,0 +1,4 @@
+OpenMount 便携模式标记文件。
+
+只要这个文件和 OpenMount.exe 放在同一目录，程序就把配置、日志和缓存写到旁边的 data\ 目录，
+而不是 %LOCALAPPDATA%\OpenMount。删除本文件即恢复按用户目录存放。

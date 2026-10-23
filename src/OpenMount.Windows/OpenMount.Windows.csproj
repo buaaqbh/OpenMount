@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RootNamespace>OpenMount.Windows</RootNamespace>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- SSH.NET (MIT): host-key scanning for trust-on-first-use; never used for file transfer. -->
+    <PackageReference Include="SSH.NET" Version="2026.0.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\OpenMount.Core\OpenMount.Core.csproj" />
+  </ItemGroup>
+</Project>
