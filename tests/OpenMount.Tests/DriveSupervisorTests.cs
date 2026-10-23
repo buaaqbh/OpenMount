@@ -24,6 +24,7 @@ public class DriveSupervisorTests : IDisposable
     {
         _paths.EnsureCreated();
         DriveSupervisor.ReconnectDelays = new[] { TimeSpan.FromMilliseconds(50) };
+        DriveSupervisor.AliveRecheckDelay = TimeSpan.FromMilliseconds(20);
     }
 
     // xUnit 2 only honours IDisposable / IAsyncLifetime on test classes; IAsyncDisposable was silently ignored and left temp dirs behind.
@@ -158,6 +159,38 @@ public class DriveSupervisorTests : IDisposable
         await WaitUntil(() => sup.Snapshot.Lifecycle == LifecycleState.Error);
         Assert.Equal(MountErrorKind.Crashed, sup.Snapshot.Error!.Kind);
         Assert.True(sup.Snapshot.Sync.AbnormalStop);
+        await sup.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task SingleFailedAliveCheckIsForgiven()
+    {
+        var drive = ArgsAndEnvironmentTests.WebDav(WebDavAuthMode.Anonymous);
+        var sup = Create(drive);
+        await sup.ConnectAsync(interactive: true);
+        var session = _engine.LastSession!;
+        session.FailAliveChecks = 1; // e.g. RC slow under load: the mount itself is fine
+        await sup.ProbeNowAsync(CancellationToken.None);
+        Assert.Equal(LifecycleState.Mounted, sup.Snapshot.Lifecycle);
+        Assert.Equal(2, session.AliveChecks); // failed once, re-checked, recovered
+        Assert.Equal(1, _engine.StartCalls);
+        await sup.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task TwoConsecutiveFailedAliveChecksCountAsMountLoss()
+    {
+        var drive = ArgsAndEnvironmentTests.WebDav(WebDavAuthMode.Anonymous);
+        drive.Mount.AutoReconnect = false;
+        var sup = Create(drive);
+        await sup.ConnectAsync(interactive: true);
+        var session = _engine.LastSession!;
+        session.FailAliveChecks = 2;
+        await sup.ProbeNowAsync(CancellationToken.None);
+        await WaitUntil(() => sup.Snapshot.Lifecycle == LifecycleState.Error);
+        Assert.Equal(MountErrorKind.Crashed, sup.Snapshot.Error!.Kind);
+        Assert.Contains("simulated rc timeout", sup.Snapshot.Error.TechnicalDetails);
+        Assert.Equal(2, session.AliveChecks);
         await sup.DisposeAsync();
     }
 
@@ -333,7 +366,16 @@ public class DriveSupervisorTests : IDisposable
 
         public Task<RemoteHealthResult> ProbeRemoteAsync(TimeSpan timeout, CancellationToken ct) => Task.FromResult(_engine.NextHealth);
         public Task<SyncState> QuerySyncStateAsync(CancellationToken ct) => Task.FromResult(LiveState);
-        public Task<bool> CheckAliveAsync(CancellationToken ct) => Task.FromResult(IsAlive);
+        /// <summary>Number of upcoming alive checks that fail although the process is running (simulated RC timeout).</summary>
+        public int FailAliveChecks { get; set; }
+        public int AliveChecks { get; private set; }
+        public Task<AliveCheckResult> CheckAliveAsync(CancellationToken ct)
+        {
+            AliveChecks++;
+            if (!IsAlive) return Task.FromResult(AliveCheckResult.Failed("process", "exited", TimeSpan.Zero));
+            if (FailAliveChecks > 0) { FailAliveChecks--; return Task.FromResult(AliveCheckResult.Failed("rc", "simulated rc timeout", TimeSpan.FromSeconds(3))); }
+            return Task.FromResult(AliveCheckResult.Ok(TimeSpan.Zero));
+        }
         public Task ExpediteUploadsAsync(CancellationToken ct) { Expedited = true; return Task.CompletedTask; }
         public Task<SpaceInfo?> QuerySpaceAsync(CancellationToken ct) => Task.FromResult<SpaceInfo?>(new SpaceInfo(100, 50));
         public Task<StopResult> StopAsync(StopPolicy policy, IProgress<StopProgressInfo>? progress, CancellationToken ct)

@@ -188,7 +188,7 @@ public class ResumeAndSftpIntegrationTests : IDisposable
             var root = letter + ":\\";
             Assert.Equal("hello from sftp", File.ReadAllText(Path.Combine(root, "hello.txt"))); // path "sub" is relative to the served root
             File.WriteAllText(Path.Combine(root, "written.txt"), "via sftp");
-            Assert.True(await ready.Session.CheckAliveAsync(CancellationToken.None));
+            Assert.True((await ready.Session.CheckAliveAsync(CancellationToken.None)).Alive);
             await Task.Delay(1500); // WinFsp delivers Close asynchronously; give rclone a moment to queue the write-back
         }
         finally

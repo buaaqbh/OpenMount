@@ -50,16 +50,27 @@ public sealed class RcClient : IDisposable
         return JsonDocument.Parse(string.IsNullOrWhiteSpace(text) ? "{}" : text);
     }
 
-    public async Task<bool> NoopAsync(TimeSpan timeout, CancellationToken ct)
+    public async Task<bool> NoopAsync(TimeSpan timeout, CancellationToken ct) => await TryNoopAsync(timeout, ct) is null;
+
+    /// <summary>rc/noop; returns null when it answered, otherwise a short description of why not (timeout, refused, status).</summary>
+    public async Task<string?> TryNoopAsync(TimeSpan timeout, CancellationToken ct)
     {
         try
         {
             using var _ = await PostAsync("rc/noop", null, timeout, ct);
-            return true;
+            return null;
         }
-        catch (Exception) when (!ct.IsCancellationRequested)
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
-            return false;
+            return $"no answer within {timeout.TotalSeconds:F0} s";
+        }
+        catch (RcException ex)
+        {
+            return $"HTTP {ex.Status}: {ex.Message}";
+        }
+        catch (Exception ex) when (!ct.IsCancellationRequested)
+        {
+            return ex.GetType().Name + ": " + (ex.InnerException?.Message ?? ex.Message);
         }
     }
 

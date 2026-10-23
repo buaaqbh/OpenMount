@@ -84,6 +84,17 @@ public sealed class SessionExitedEventArgs : EventArgs
     public bool Intentional { get; }
 }
 
+/// <summary>
+/// Outcome of one lifecycle check. A failure names the step (process / rc / mountpoint / identity) and carries the
+/// raw detail, so a lost mount can be explained from the logs afterwards instead of guessing.
+/// </summary>
+public sealed record AliveCheckResult(bool Alive, string Step, string Detail, TimeSpan Elapsed)
+{
+    public static AliveCheckResult Ok(TimeSpan elapsed) => new(true, "ok", string.Empty, elapsed);
+    public static AliveCheckResult Failed(string step, string detail, TimeSpan elapsed) => new(false, step, detail, elapsed);
+    public override string ToString() => Alive ? $"ok in {Elapsed.TotalMilliseconds:F0} ms" : $"{Step} failed after {Elapsed.TotalMilliseconds:F0} ms: {Detail}";
+}
+
 public interface IMountSession : IAsyncDisposable
 {
     MountSessionInfo Info { get; }
@@ -92,8 +103,8 @@ public interface IMountSession : IAsyncDisposable
     Task<RemoteHealthResult> ProbeRemoteAsync(TimeSpan timeout, CancellationToken ct);
     /// <summary>Live sync state from rc vfs/stats + vfs/queue. Returns Unknown when RC is unavailable.</summary>
     Task<SyncState> QuerySyncStateAsync(CancellationToken ct);
-    /// <summary>Lifecycle health: process alive, RC responding, mount point present and identity intact.</summary>
-    Task<bool> CheckAliveAsync(CancellationToken ct);
+    /// <summary>Lifecycle health: process alive, RC responding, mount point present and identity intact. Never throws.</summary>
+    Task<AliveCheckResult> CheckAliveAsync(CancellationToken ct);
     Task ExpediteUploadsAsync(CancellationToken ct);
     Task<SpaceInfo?> QuerySpaceAsync(CancellationToken ct);
     Task<StopResult> StopAsync(StopPolicy policy, IProgress<StopProgressInfo>? progress, CancellationToken ct);

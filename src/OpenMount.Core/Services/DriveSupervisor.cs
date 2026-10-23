@@ -528,7 +528,7 @@ public sealed class DriveSupervisor : IAsyncDisposable
             session.Exited -= OnSessionExited;
             try { await session.DisposeAsync(); } catch { }
             AfterUnmounted();
-            _log.Warn(Src, $"mount lost: {error.Kind} {error.Title}");
+            _log.Warn(Src, $"mount lost: {error.Kind} {error.Title}" + (string.IsNullOrWhiteSpace(error.TechnicalDetails) ? string.Empty : " | " + error.TechnicalDetails.Replace('\n', ' ')));
 
             var report = await SafeInspectAsync(_paths.CacheDirFor(_drive, _settings()), abnormalStop: true, CancellationToken.None);
             UpdateRecoveryRecord(report.State, report.IdentityMatches);
@@ -642,20 +642,59 @@ public sealed class DriveSupervisor : IAsyncDisposable
         try { cts.Cancel(); cts.Dispose(); } catch { }
     }
 
+    private int _aliveFailuresTotal;
+
+    private static async Task<AliveCheckResult> SafeCheckAliveAsync(IMountSession session, CancellationToken ct)
+    {
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        try { return await session.CheckAliveAsync(ct); }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+        catch (Exception ex) { return AliveCheckResult.Failed("check", ex.GetType().Name + ": " + ex.Message, sw.Elapsed); }
+    }
+
+    /// <summary>What the drive looked like when a check failed: uptime, last remote probe, sync state, recovered glitches so far.</summary>
+    private string DescribeMountContext(IMountSession session)
+    {
+        var s = Snapshot;
+        var uptime = DateTimeOffset.UtcNow - session.Info.StartedAt;
+        var lastProbe = s.LastProbeAt is { } at ? $"{(DateTimeOffset.Now - at).TotalSeconds:F0} s ago" : "never";
+        return $"context: pid {session.Info.ProcessId}, rc port {session.Info.RcPort}, mounted {uptime.TotalMinutes:F1} min ago, " +
+               $"remote={s.RemoteHealth} (probed {lastProbe}), sync={s.Sync.Kind}, network={(_networkAvailable ? "up" : "down")}, " +
+               $"transient failures recovered so far={_aliveFailuresTotal}";
+    }
+
+    /// <summary>Pause between a failed lifecycle check and the confirming re-check (tests shorten it).</summary>
+    public static TimeSpan AliveRecheckDelay { get; set; } = TimeSpan.FromSeconds(3);
+
     /// <summary>Lifecycle health check + real remote access. Remote failures never trigger a remount.</summary>
     public async Task ProbeNowAsync(CancellationToken ct)
     {
         var session = _session;
         if (session is null || Snapshot.Lifecycle != LifecycleState.Mounted) return;
-        bool alive;
-        try { alive = await session.CheckAliveAsync(ct); }
-        catch { alive = false; }
-        if (!alive)
+        var first = await SafeCheckAliveAsync(session, ct);
+        if (!first.Alive)
         {
             if (!session.IsAlive) return; // the Exited handler takes over
-            _log.Warn(Src, "mount point lost while process alive; treating as mount loss");
-            _ = HandleMountLostAsync(MountError.Create(MountErrorKind.Crashed, "mount point disappeared or identity check failed"));
-            return;
+            // One failed check is not a lost mount: RC can be slow under load and a volume query can fail transiently
+            // (2026-10-23: a healthy mount was torn down after a single failure). Confirm before acting.
+            _log.Warn(Src, $"alive check failed ({first}); re-checking in {AliveRecheckDelay.TotalSeconds:F0} s. {DescribeMountContext(session)}");
+            try { await Task.Delay(AliveRecheckDelay, ct); }
+            catch (OperationCanceledException) { return; }
+            if (!ReferenceEquals(_session, session) || Snapshot.Lifecycle != LifecycleState.Mounted) return;
+            var second = await SafeCheckAliveAsync(session, ct);
+            if (second.Alive)
+            {
+                _log.Info(Src, $"alive check recovered ({second}); keeping the mount");
+                _aliveFailuresTotal++;
+            }
+            else
+            {
+                if (!session.IsAlive) return;
+                var technical = $"first: {first}; second: {second}; {DescribeMountContext(session)}";
+                _log.Warn(Src, "mount point lost while process alive; treating as mount loss. " + technical);
+                _ = HandleMountLostAsync(MountError.Create(MountErrorKind.Crashed, technical));
+                return;
+            }
         }
         var previous = Snapshot.RemoteHealth;
         RemoteHealthResult result;

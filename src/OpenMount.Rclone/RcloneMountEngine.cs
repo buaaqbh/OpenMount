@@ -381,13 +381,43 @@ internal sealed class RcloneMountSession : IMountSession
         }
     }
 
-    public async Task<bool> CheckAliveAsync(CancellationToken ct)
+    /// <summary>RC must answer within this long; the server is local, but a busy process may need a moment (3 s was too tight).</summary>
+    public static TimeSpan RcNoopTimeout { get; set; } = TimeSpan.FromSeconds(10);
+
+    public async Task<AliveCheckResult> CheckAliveAsync(CancellationToken ct)
     {
-        if (_process.HasExited) return false;
-        if (!await _rc.NoopAsync(TimeSpan.FromSeconds(3), ct)) return false;
-        if (!_inspector.Exists(Info.MountPoint)) return false;
+        var sw = Stopwatch.StartNew();
+        AliveCheckResult result;
+        try
+        {
+            result = await CheckAliveCoreAsync(sw, ct);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            result = AliveCheckResult.Failed("check", ex.GetType().Name + ": " + _redactor.Redact(ex.Message), sw.Elapsed);
+        }
+        if (!result.Alive) _driveLog.Warn("mount", $"alive check: {result}; pid {_process.Id} exited={_process.HasExited}");
+        return result;
+    }
+
+    private async Task<AliveCheckResult> CheckAliveCoreAsync(Stopwatch sw, CancellationToken ct)
+    {
+        if (_process.HasExited) return AliveCheckResult.Failed("process", $"rclone pid {_process.Id} exited with code {_process.ExitCode}", sw.Elapsed);
+        var rcSw = Stopwatch.StartNew();
+        var rcError = await _rc.TryNoopAsync(RcNoopTimeout, ct);
+        if (rcError is not null)
+            return AliveCheckResult.Failed("rc", $"rc/noop on 127.0.0.1:{_rc.Port} {rcError} (waited {rcSw.ElapsedMilliseconds} ms; process still running)", sw.Elapsed);
+        if (!_inspector.Exists(Info.MountPoint))
+            return AliveCheckResult.Failed("mountpoint", $"{Info.MountPoint} is gone (not in GetLogicalDrives / directory missing) while rclone pid {_process.Id} is running", sw.Elapsed);
         var isNetworkLetter = _drive.Mount.NetworkMode && _drive.Mount.Kind == MountKind.DriveLetter;
-        return _inspector.VerifyIdentity(Info.MountPoint, isNetworkLetter ? _args.VolumeName : _args.VolumeLabel, _allowedFs, isNetworkLetter, out _);
+        var idSw = Stopwatch.StartNew();
+        if (!_inspector.VerifyIdentity(Info.MountPoint, isNetworkLetter ? _args.VolumeName : _args.VolumeLabel, _allowedFs, isNetworkLetter, out var detail))
+            return AliveCheckResult.Failed("identity", $"{detail} (query took {idSw.ElapsedMilliseconds} ms)", sw.Elapsed);
+        return AliveCheckResult.Ok(sw.Elapsed);
     }
 
     public async Task ExpediteUploadsAsync(CancellationToken ct)

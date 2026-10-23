@@ -89,7 +89,7 @@ public class MountIntegrationTests : IAsyncLifetime
             Assert.True(Directory.Exists(root));
             Assert.Equal("hello from webdav", File.ReadAllText(Path.Combine(root, "hello.txt")));
             File.WriteAllText(Path.Combine(root, "written.txt"), "from mount");
-            Assert.True(await ready.Session.CheckAliveAsync(CancellationToken.None));
+            Assert.True((await ready.Session.CheckAliveAsync(CancellationToken.None)).Alive);
             var live = await ready.Session.QuerySyncStateAsync(CancellationToken.None);
             Assert.Equal(SyncSource.Live, live.Source);
         }
