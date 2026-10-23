@@ -1,4 +1,6 @@
+using System.IO;
 using System.Net.Http.Headers;
+using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
 
@@ -22,13 +24,38 @@ public sealed class RcClient : IDisposable
     public RcClient(int port, string user, string pass)
     {
         Port = port;
-        _http = new HttpClient { BaseAddress = new Uri($"http://127.0.0.1:{port}/"), Timeout = TimeSpan.FromSeconds(30) };
+        // rclone's rc server drops idle keep-alive connections; reusing a pooled one afterwards fails instantly with
+        // WSAECONNABORTED or "response ended prematurely" (46 times in one hour on 2026-10-23, each ~60 s after the previous
+        // call). Keep pooled connections short-lived so a 60 s probe always starts fresh, and retry once when it still happens.
+        var handler = new SocketsHttpHandler
+        {
+            PooledConnectionIdleTimeout = TimeSpan.FromSeconds(15),
+            PooledConnectionLifetime = TimeSpan.FromMinutes(5),
+        };
+        _http = new HttpClient(handler) { BaseAddress = new Uri($"http://127.0.0.1:{port}/"), Timeout = TimeSpan.FromSeconds(30) };
         _http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", Convert.ToBase64String(Encoding.UTF8.GetBytes(user + ":" + pass)));
     }
 
     public int Port { get; }
 
+    /// <summary>POST to the rc server; a request that died on a stale connection is sent once more on a fresh one.</summary>
     public async Task<JsonDocument> PostAsync(string path, object? body, TimeSpan? timeout, CancellationToken ct)
+    {
+        try
+        {
+            return await PostOnceAsync(path, body, timeout, ct);
+        }
+        catch (HttpRequestException ex) when (IsStaleConnection(ex) && !ct.IsCancellationRequested)
+        {
+            return await PostOnceAsync(path, body, timeout, ct);
+        }
+    }
+
+    private static bool IsStaleConnection(HttpRequestException ex) =>
+        ex.HttpRequestError is HttpRequestError.ResponseEnded or HttpRequestError.ConnectionError
+        || ex.InnerException is IOException or SocketException;
+
+    private async Task<JsonDocument> PostOnceAsync(string path, object? body, TimeSpan? timeout, CancellationToken ct)
     {
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         if (timeout is { } t) cts.CancelAfter(t);
