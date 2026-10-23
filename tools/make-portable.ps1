@@ -42,11 +42,17 @@ if (Test-Path $zip) { Remove-Item -Force $zip }
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 [System.IO.Compression.ZipFile]::CreateFromDirectory($stage, $zip, [System.IO.Compression.CompressionLevel]::Optimal, $false, [System.Text.Encoding]::UTF8)
 
-# refresh the unpacked folder but keep a user's data\ from an earlier trial
+# refresh the unpacked folder but keep a user's data\ from an earlier trial; skip it while OpenMount runs from there
+$size = [math]::Round((Get-Item $zip).Length / 1MB, 1)
+$running = Get-Process OpenMount, rclone -ErrorAction SilentlyContinue | Where-Object { $_.Path -and $_.Path.StartsWith($out, [StringComparison]::OrdinalIgnoreCase) }
+if ($running) {
+  Remove-Item -Recurse -Force $stage
+  Write-Warning "OpenMount is running from $out (pid $(($running | ForEach-Object { $_.Id }) -join ', ')); the unpacked copy was left as is. Exit it and rerun, or unzip $zip."
+  Write-Host "done: $zip ($size MB)"
+  exit 0
+}
 New-Item -ItemType Directory -Force $out | Out-Null
 Get-ChildItem $out -Force | Where-Object { $_.Name -ne "data" } | Remove-Item -Recurse -Force
 Get-ChildItem $stage -Force | Copy-Item -Destination $out -Recurse -Force
 Remove-Item -Recurse -Force $stage
-
-$size = [math]::Round((Get-Item $zip).Length / 1MB, 1)
 Write-Host "done: $zip ($size MB); unpacked copy in $out"
