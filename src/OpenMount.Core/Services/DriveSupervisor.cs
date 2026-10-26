@@ -703,10 +703,15 @@ public sealed class DriveSupervisor : IAsyncDisposable
         catch (Exception ex) { result = new RemoteHealthResult(RemoteHealth.Unreachable, ex.Message, TimeSpan.Zero); }
         _probeFailures = result.Health == RemoteHealth.Healthy ? 0 : _probeFailures + 1;
         Update(s => s with { RemoteHealth = result.Health, LastProbeAt = DateTimeOffset.Now });
-        if (previous != RemoteHealth.Healthy && previous != RemoteHealth.Unknown && result.Health == RemoteHealth.Healthy && _settings().General.Notifications)
-            _ui.Notify(_drive.Name, "远端已恢复可访问", NotificationKind.Success);
+        if (previous != RemoteHealth.Healthy && previous != RemoteHealth.Unknown && result.Health == RemoteHealth.Healthy)
+        {
+            _log.Info(Src, $"remote recovered after {previous} ({result.Elapsed.TotalMilliseconds:F0} ms)");
+            if (_settings().General.Notifications) _ui.Notify(_drive.Name, "远端已恢复可访问", NotificationKind.Success);
+        }
         if (previous == RemoteHealth.Healthy && result.Health != RemoteHealth.Healthy)
             _log.Warn(Src, $"remote degraded: {result.Health} {_redactor.Redact(result.Error ?? string.Empty)}");
+        else if (previous != RemoteHealth.Healthy && result.Health != RemoteHealth.Healthy && previous != result.Health)
+            _log.Warn(Src, $"remote still unavailable: {result.Health} {_redactor.Redact(result.Error ?? string.Empty)}");
         await RefreshLiveStateAsync(ct);
     }
 

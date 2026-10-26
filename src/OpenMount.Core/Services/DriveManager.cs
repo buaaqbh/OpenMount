@@ -64,7 +64,13 @@ public sealed class DriveManager : IAsyncDisposable
 
     public IReadOnlyList<DriveSupervisor> Supervisors
     {
-        get { lock (_gate) return _repo.Drives.Select(d => _supervisors[d.Id]).ToList(); }
+        get
+        {
+            // During InitializeAsync the repository already lists every drive while supervisors are still being created
+            // one by one; a listener reacting to SupervisorAdded must not trip over the ones that do not exist yet
+            // (KeyNotFoundException at startup on 2026-10-23 with two drives).
+            lock (_gate) return _repo.Drives.Select(d => _supervisors.TryGetValue(d.Id, out var s) ? s : null).OfType<DriveSupervisor>().ToList();
+        }
     }
 
     public DriveSupervisor? Get(Guid id)
